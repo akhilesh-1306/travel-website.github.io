@@ -10,10 +10,15 @@ const ExpressError = require("./utils/ExpressError.js");
 // const {listingSchema,reviewSchema} = require("./schema.js");
 // const Review = require("./models/review.js");
 const session = require("express-session");
-const flash = require("connect-flash");
-const listings = require("./routes/listing.js");
-const reviews = require("./routes/review.js");
+const flash = require("connect-flash");    //To flash messages
 const { secureHeapUsed } = require("crypto");
+const passport = require("passport");     //For authentication
+const LocalStrategy = require("passport-local");
+const User = require("./models/user.js");
+
+const listingRouter = require("./routes/listing.js");
+const reviewRouter = require("./routes/review.js");
+const userRouter = require("./routes/user.js");
 
 app.set("views",path.join(__dirname,"views"));
 app.set("view engine","ejs");
@@ -50,18 +55,23 @@ app.get("/",(req,res)=>{
 app.use(session(sessionOptions));
 app.use(flash());
 
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
 app.use((req,res,next)=>{
     res.locals.success = req.flash("success");
     res.locals.error = req.flash("error");
+    res.locals.currUser = req.user;
     next();
 })
 
-//Listings
-app.use("/listings",listings);
 
-//Reviews
-app.use("/listings/:id/reviews",reviews)
-
+app.use("/listings",listingRouter);    //Listings
+app.use("/listings/:id/reviews",reviewRouter)   //Reviews
+app.use("/",userRouter);    //User
 
 app.all("*",(req,res,next)=>{
     next(new ExpressError(404,"Page Not Found"));
